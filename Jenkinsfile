@@ -6,7 +6,9 @@
 // Pipeline:
 // Checkout
 //     ↓
-// npm ci
+// Debug Workspace
+//     ↓
+// Install npm Dependencies
 //     ↓
 // Verify Vite
 //     ↓
@@ -14,7 +16,7 @@
 //     ↓
 // Docker Build
 //     ↓
-// Push to AWS ECR
+// Push to ECR
 //     ↓
 // Deploy to EC2
 // =============================================================================
@@ -74,7 +76,77 @@ pipeline {
 
 
         // =====================================================================
-        // STAGE 1 — INSTALL NPM DEPENDENCIES
+        // STAGE 1 — DEBUG WORKSPACE
+        // =====================================================================
+
+        stage('Debug Workspace') {
+
+            steps {
+
+                bat '''
+                    @echo on
+
+                    echo ========================================
+                    echo DEBUG WORKSPACE
+                    echo ========================================
+
+                    echo.
+                    echo Current directory:
+                    cd
+
+                    echo.
+                    echo Workspace contents:
+                    dir
+
+                    echo.
+                    echo ========================================
+                    echo CHECKING PACKAGE.JSON
+                    echo ========================================
+
+                    if not exist package.json (
+                        echo ERROR: package.json not found
+                        exit /b 1
+                    )
+
+                    echo package.json found.
+
+                    echo.
+                    echo ========================================
+                    echo CHECKING PACKAGE-LOCK.JSON
+                    echo ========================================
+
+                    if not exist package-lock.json (
+                        echo ERROR: package-lock.json not found
+                        exit /b 1
+                    )
+
+                    echo package-lock.json found.
+
+                    echo.
+                    echo ========================================
+                    echo NODE VERSION
+                    echo ========================================
+
+                    node --version
+
+                    echo.
+                    echo ========================================
+                    echo NPM VERSION
+                    echo ========================================
+
+                    npm --version
+
+                    echo.
+                    echo ========================================
+                    echo DEBUG COMPLETE
+                    echo ========================================
+                '''
+            }
+        }
+
+
+        // =====================================================================
+        // STAGE 2 — INSTALL NPM DEPENDENCIES
         // =====================================================================
 
         stage('Install Dependencies') {
@@ -82,7 +154,7 @@ pipeline {
             steps {
 
                 bat '''
-                    @echo off
+                    @echo on
 
                     echo ========================================
                     echo INSTALLING NPM DEPENDENCIES
@@ -102,22 +174,27 @@ pipeline {
 
                     echo.
                     echo ========================================
-                    echo RUNNING NPM CI
+                    echo RUNNING NPM CI NOW
                     echo ========================================
 
-                    call npm ci
+                    npm ci
+
+                    echo.
+                    echo npm ci completed.
+                    echo ERRORLEVEL:
+                    echo %ERRORLEVEL%
 
                     if errorlevel 1 (
                         echo.
                         echo ========================================
-                        echo ERROR: npm ci FAILED
+                        echo ERROR: NPM CI FAILED
                         echo ========================================
                         exit /b 1
                     )
 
                     echo.
                     echo ========================================
-                    echo NPM CI COMPLETED
+                    echo NPM CI SUCCESSFUL
                     echo ========================================
 
 
@@ -131,12 +208,12 @@ pipeline {
                         exit /b 1
                     )
 
-                    echo node_modules directory exists.
+                    echo SUCCESS: node_modules directory exists.
 
 
                     echo.
                     echo ========================================
-                    echo CHECKING VITE
+                    echo CHECKING VITE EXECUTABLE
                     echo ========================================
 
                     if not exist "node_modules\\.bin\\vite.cmd" (
@@ -147,12 +224,12 @@ pipeline {
                         exit /b 1
                     )
 
-                    echo Vite executable found.
+                    echo SUCCESS: Vite executable exists.
 
 
                     echo.
                     echo ========================================
-                    echo VITE VERSION
+                    echo CHECKING VITE VERSION
                     echo ========================================
 
                     call "node_modules\\.bin\\vite.cmd" --version
@@ -165,7 +242,7 @@ pipeline {
 
                     echo.
                     echo ========================================
-                    echo INSTALL DEPENDENCIES SUCCESSFUL
+                    echo DEPENDENCY INSTALLATION COMPLETE
                     echo ========================================
                 '''
             }
@@ -173,7 +250,7 @@ pipeline {
 
 
         // =====================================================================
-        // STAGE 2 — BUILD REACT APPLICATION
+        // STAGE 3 — BUILD REACT APPLICATION
         // =====================================================================
 
         stage('Build (Vite)') {
@@ -181,12 +258,11 @@ pipeline {
             steps {
 
                 bat '''
-                    @echo off
+                    @echo on
 
                     echo ========================================
                     echo BUILDING REACT APPLICATION
                     echo ========================================
-
 
                     echo.
                     echo Checking node_modules...
@@ -196,6 +272,8 @@ pipeline {
                         exit /b 1
                     )
 
+                    echo node_modules exists.
+
 
                     echo.
                     echo Checking Vite...
@@ -204,6 +282,8 @@ pipeline {
                         echo ERROR: Vite executable does not exist.
                         exit /b 1
                     )
+
+                    echo Vite executable exists.
 
 
                     echo.
@@ -219,7 +299,7 @@ pipeline {
 
                     echo.
                     echo ========================================
-                    echo RUNNING NPM BUILD
+                    echo RUNNING NPM RUN BUILD
                     echo ========================================
 
                     call npm run build
@@ -227,7 +307,7 @@ pipeline {
                     if errorlevel 1 (
                         echo.
                         echo ========================================
-                        echo ERROR: npm run build FAILED
+                        echo ERROR: NPM BUILD FAILED
                         echo ========================================
                         exit /b 1
                     )
@@ -242,6 +322,8 @@ pipeline {
                         echo ERROR: dist directory was NOT created.
                         exit /b 1
                     )
+
+                    echo SUCCESS: dist directory exists.
 
 
                     echo.
@@ -273,7 +355,7 @@ pipeline {
 
 
         // =====================================================================
-        // STAGE 3 — BUILD DOCKER IMAGE
+        // STAGE 4 — BUILD DOCKER IMAGE
         // =====================================================================
 
         stage('Build Docker Image') {
@@ -281,7 +363,7 @@ pipeline {
             steps {
 
                 bat """
-                    @echo off
+                    @echo on
 
                     echo ========================================
                     echo BUILDING FRONTEND DOCKER IMAGE
@@ -294,6 +376,7 @@ pipeline {
                     echo.
                     echo Docker image:
                     echo ${FULL_IMAGE}
+
 
                     echo.
                     echo ========================================
@@ -313,7 +396,7 @@ pipeline {
 
                     echo.
                     echo ========================================
-                    echo VERIFYING DOCKER IMAGE
+                    echo DOCKER IMAGE CREATED
                     echo ========================================
 
                     docker images ${ECR_REGISTRY}/${ECR_REPO}
@@ -329,7 +412,7 @@ pipeline {
 
 
         // =====================================================================
-        // STAGE 4 — PUSH IMAGE TO AWS ECR
+        // STAGE 5 — PUSH IMAGE TO ECR
         // =====================================================================
 
         stage('Push to ECR') {
@@ -352,7 +435,7 @@ pipeline {
 
                     bat """
 
-                        @echo off
+                        @echo on
 
                         echo ========================================
                         echo AWS ECR LOGIN
@@ -383,13 +466,13 @@ pipeline {
 
                         echo.
                         echo ========================================
-                        echo LOGGING INTO AWS ECR
+                        echo LOGGING INTO ECR
                         echo ========================================
 
                         aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
 
                         if errorlevel 1 (
-                            echo ERROR: ECR login failed.
+                            echo ERROR: ECR LOGIN FAILED.
                             exit /b 1
                         )
 
@@ -411,7 +494,7 @@ pipeline {
                         docker push ${FULL_IMAGE}
 
                         if errorlevel 1 (
-                            echo ERROR: Docker push failed.
+                            echo ERROR: DOCKER PUSH FAILED.
                             exit /b 1
                         )
 
@@ -420,7 +503,6 @@ pipeline {
                         echo ========================================
                         echo ECR PUSH SUCCESSFUL
                         echo ========================================
-
                     """
                 }
             }
@@ -428,7 +510,7 @@ pipeline {
 
 
         // =====================================================================
-        // STAGE 5 — DEPLOY FRONTEND TO EC2
+        // STAGE 6 — DEPLOY FRONTEND TO EC2
         // =====================================================================
 
         stage('Deploy to EC2') {
@@ -456,7 +538,7 @@ pipeline {
 
 
                     // =========================================================
-                    // CREATE EC2 DEPLOYMENT SCRIPT
+                    // CREATE DEPLOYMENT SCRIPT
                     // =========================================================
 
                     writeFile(
@@ -507,14 +589,14 @@ aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS 
 # =====================================================================
 
 echo "========================================"
-echo "Pulling latest frontend image"
+echo "Pulling frontend image"
 echo "========================================"
 
 docker pull ${FULL_IMAGE}
 
 
 # =====================================================================
-# STOP OLD CONTAINER
+# STOP OLD FRONTEND CONTAINER
 # =====================================================================
 
 echo "========================================"
@@ -531,7 +613,7 @@ docker rm -f ${CONTAINER_NAME} 2>/dev/null || true
 # =====================================================================
 
 echo "========================================"
-echo "Creating Docker network if required"
+echo "Checking Docker network"
 echo "========================================"
 
 docker network inspect ${DOCKER_NETWORK} >/dev/null 2>&1 || docker network create ${DOCKER_NETWORK}
@@ -587,7 +669,7 @@ docker exec ${CONTAINER_NAME} sh -c "sed -i 's|backend:8080|${BACKEND_UPSTREAM}|
 
 
 # =====================================================================
-# TEST NGINX CONFIGURATION
+# TEST NGINX
 # =====================================================================
 
 echo "========================================"
@@ -609,7 +691,7 @@ docker exec ${CONTAINER_NAME} nginx -s reload
 
 
 # =====================================================================
-# SHOW FRONTEND LOGS
+# SHOW LOGS
 # =====================================================================
 
 echo "========================================"
@@ -620,7 +702,7 @@ docker logs --tail 50 ${CONTAINER_NAME}
 
 
 # =====================================================================
-# CLEAN OLD IMAGES
+# CLEAN UNUSED IMAGES
 # =====================================================================
 
 echo "========================================"
@@ -632,142 +714,4 @@ docker image prune -f || true
 
 # =====================================================================
 # FINAL STATUS
-# =====================================================================
-
-echo "========================================"
-echo "Frontend container status"
-echo "========================================"
-
-docker ps --filter name=${CONTAINER_NAME}
-
-
-echo "========================================"
-echo "FRONTEND DEPLOYMENT COMPLETE"
-echo "========================================"
-
-"""
-                    )
-
-
-                    // =========================================================
-                    // COPY SCRIPT TO EC2
-                    // =========================================================
-
-                    bat """
-
-                        @echo off
-
-                        echo ========================================
-                        echo COPYING DEPLOYMENT SCRIPT TO EC2
-                        echo ========================================
-
-                        scp -o StrictHostKeyChecking=no -i "%PEM_FILE%" deploy_frontend.sh ${EC2_USER}@${EC2_HOST}:/tmp/deploy_frontend.sh
-
-                        if errorlevel 1 (
-                            echo ERROR: Failed to copy deployment script to EC2.
-                            exit /b 1
-                        )
-
-                    """
-
-
-                    // =========================================================
-                    // EXECUTE DEPLOYMENT SCRIPT
-                    // =========================================================
-
-                    bat """
-
-                        @echo off
-
-                        echo ========================================
-                        echo DEPLOYING FRONTEND TO EC2
-                        echo ========================================
-
-                        ssh -o StrictHostKeyChecking=no -i "%PEM_FILE%" ${EC2_USER}@${EC2_HOST} "chmod +x /tmp/deploy_frontend.sh && export AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID% && export AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY% && export AWS_DEFAULT_REGION=${AWS_REGION} && bash /tmp/deploy_frontend.sh"
-
-                        if errorlevel 1 (
-                            echo ERROR: EC2 deployment failed.
-                            exit /b 1
-                        )
-
-                    """
-
-
-                    // =========================================================
-                    // CLEAN LOCAL DEPLOYMENT SCRIPT
-                    // =========================================================
-
-                    bat """
-
-                        @echo off
-
-                        echo ========================================
-                        echo CLEANING TEMPORARY FILE
-                        echo ========================================
-
-                        if exist deploy_frontend.sh del deploy_frontend.sh
-
-                    """
-                }
-            }
-        }
-    }
-
-
-    // =========================================================================
-    // POST ACTIONS
-    // =========================================================================
-
-    post {
-
-        success {
-
-            echo """
-========================================
-FRONTEND PIPELINE SUCCESS
-========================================
-
-Frontend deployed successfully.
-
-Docker Image:
-${FULL_IMAGE}
-
-EC2:
-${EC2_HOST}
-
-Frontend:
-http://${EC2_HOST}:${HOST_PORT}
-
-========================================
-"""
-        }
-
-
-        failure {
-
-            echo """
-========================================
-FRONTEND PIPELINE FAILED
-========================================
-
-Check the failed stage above.
-
-========================================
-"""
-        }
-
-
-        always {
-
-            bat '''
-                @echo off
-
-                echo ========================================
-                echo CLEANING DOCKER CACHE
-                echo ========================================
-
-                docker image prune -f || exit /b 0
-            '''
-        }
-    }
-}
+# =================================================================
