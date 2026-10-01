@@ -315,7 +315,7 @@ echo "Frontend deployment complete"
 echo "========================================"
 
 """
-
+)
 
                     // =========================================================
                     // Copy deployment script to EC2
