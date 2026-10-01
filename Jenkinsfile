@@ -66,7 +66,7 @@ pipeline {
             post {
                 success {
                     // Archive the dist folder as a zip for traceability
-                    zip zipFile: 'frontend-dist.zip', dir: 'frontend/dist'
+                    sh 'cd frontend && zip -r ../frontend-dist.zip dist/'
                     archiveArtifacts artifacts: 'frontend-dist.zip', fingerprint: true
                 }
             }
